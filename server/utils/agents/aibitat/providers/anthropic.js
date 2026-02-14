@@ -189,7 +189,7 @@ class AnthropicProvider extends Provider {
       const response = await this.client.messages.create(
         {
           model: this.model,
-          max_tokens: 4096,
+          max_tokens: 8192,
           system: this.#buildSystemPrompt(systemPrompt),
           messages: chats,
           stream: true,
@@ -316,7 +316,7 @@ class AnthropicProvider extends Provider {
       const response = await this.client.messages.create(
         {
           model: this.model,
-          max_tokens: 4096,
+          max_tokens: 8192,
           system: this.#buildSystemPrompt(systemPrompt),
           messages: chats,
           stream: false,
