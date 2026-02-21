@@ -1,5 +1,6 @@
 /* eslint-disable react-hooks/refs */
 import React, { forwardRef } from "react";
+import Toggle from "@/components/lib/Toggle";
 
 const FlowInfoNode = forwardRef(({ config, onConfigChange }, refs) => {
   return (
@@ -56,6 +57,22 @@ const FlowInfoNode = forwardRef(({ config, onConfigChange }, refs) => {
           className="w-full border-none bg-theme-settings-input-bg text-theme-text-primary placeholder:text-theme-settings-input-placeholder text-sm rounded-lg focus:outline-primary-button active:outline-primary-button outline-none p-2.5"
           rows={3}
           placeholder="Enter flow description"
+        />
+      </div>
+
+      <div className="pt-4 border-t border-white/10">
+        <Toggle
+          size="md"
+          variant="horizontal"
+          label="Raw Input Mode"
+          description="When enabled, the full text after '@agent FlowName' is passed directly as the first variable without LLM processing. Use for large document inputs."
+          enabled={config?.rawInput || false}
+          onChange={(checked) =>
+            onConfigChange({
+              ...config,
+              rawInput: checked,
+            })
+          }
         />
       </div>
     </div>

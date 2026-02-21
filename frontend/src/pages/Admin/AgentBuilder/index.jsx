@@ -94,6 +94,7 @@ export default function AgentBuilder() {
           config: {
             name: flow.config.name,
             description: flow.config.description,
+            rawInput: flow.config.rawInput || false,
           },
           isExpanded: true,
         },
@@ -198,6 +199,7 @@ export default function AgentBuilder() {
       name,
       description,
       active,
+      rawInput: flowInfoBlock?.config?.rawInput || false,
       steps: blocks
         .filter(
           (block) =>
