@@ -216,18 +216,23 @@ class AgentFlows {
     const variables = startBlock?.config?.variables || [];
     const toolName = AgentFlows.sanitizeToolName(flow.name) || `flow_${uuid}`;
 
+    const isRawInput = flow.config.rawInput === true;
+    const baseDescription =
+      flow.config.description || `Execute agent flow: ${flow.name}`;
+    const toolDescription = isRawInput
+      ? `${baseDescription} IMPORTANT: Call this tool with a short placeholder value for the input variable. The user's full raw text will be injected automatically.`
+      : baseDescription;
+
     return {
       name: toolName,
       description: `Execute agent flow: ${flow.name}`,
       plugin: (_runtimeArgs = {}) => ({
         name: toolName,
-        description:
-          flow.config.description || `Execute agent flow: ${flow.name}`,
+        description: toolDescription,
         setup: (aibitat) => {
           aibitat.function({
             name: toolName,
-            description:
-              flow.config.description || `Execute agent flow: ${flow.name}`,
+            description: toolDescription,
             parameters: {
               type: "object",
               properties: variables.reduce((acc, v) => {
@@ -242,6 +247,24 @@ class AgentFlows {
               }, {}),
             },
             handler: async (args) => {
+              // For raw input flows, extract the user's original text
+              // instead of using the LLM-generated arguments
+              if (isRawInput && variables.length > 0) {
+                const userChat = aibitat._chats?.find((c) => c.from === "USER");
+                if (userChat?.content) {
+                  let rawText = userChat.content;
+                  // Strip @agent prefix if present
+                  rawText = rawText.replace(/^@agent\s+/i, "");
+                  // Strip the flow name (case-insensitive)
+                  const flowNamePattern = new RegExp(
+                    `^${flow.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*`,
+                    "i"
+                  );
+                  rawText = rawText.replace(flowNamePattern, "").trim();
+                  args = { [variables[0].name]: rawText };
+                }
+              }
+
               aibitat.introspect(`Executing flow: ${flow.name}`);
               const result = await AgentFlows.executeFlow(uuid, args, aibitat);
               if (!result.success) {
@@ -252,11 +275,12 @@ class AgentFlows {
               }
               aibitat.introspect(`${flow.name} completed successfully`);
 
-              // If the flow result has directOutput, return it
-              // as the aibitat result so that no other processing is done
-              if (!!result.directOutput) {
+              // If raw input mode or directOutput, skip LLM post-processing
+              if (isRawInput || !!result.directOutput) {
                 aibitat.skipHandleExecution = true;
-                return AgentFlows.stringifyResult(result.directOutput);
+                if (result.directOutput) {
+                  return AgentFlows.stringifyResult(result.directOutput);
+                }
               }
 
               return AgentFlows.stringifyResult(result);
