@@ -141,6 +141,28 @@ class AnthropicLLM {
   }
 
   /**
+   * Detects the actual image mime type from base64 data by inspecting magic bytes.
+   * Falls back to the declared mime type if detection fails.
+   * @param {string} base64Data - raw base64 string (no data URI prefix)
+   * @param {string} declaredMime - the mime type declared by the client
+   * @returns {string}
+   */
+  #detectImageMimeType(base64Data, declaredMime) {
+    try {
+      const bytes = Buffer.from(base64Data.slice(0, 16), "base64");
+      if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47)
+        return "image/png";
+      if (bytes[0] === 0xff && bytes[1] === 0xd8)
+        return "image/jpeg";
+      if (bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46)
+        return "image/gif";
+      if (bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46)
+        return "image/webp";
+    } catch (_) {}
+    return declaredMime;
+  }
+
+  /**
    * Generates appropriate content array for a message + attachments.
    * @param {{userPrompt:string, attachments: import("../../helpers").Attachment[]}}
    * @returns {string|object[]}
@@ -152,12 +174,14 @@ class AnthropicLLM {
 
     const content = [{ type: "text", text: userPrompt }];
     for (let attachment of attachments) {
+      const base64Data = attachment.contentString.split("base64,")[1];
+      const mimeType = this.#detectImageMimeType(base64Data, attachment.mime);
       content.push({
         type: "image",
         source: {
           type: "base64",
-          media_type: attachment.mime,
-          data: attachment.contentString.split("base64,")[1],
+          media_type: mimeType,
+          data: base64Data,
         },
       });
     }
