@@ -207,6 +207,8 @@ class AgentFlows {
     return {
       name: `flow_${uuid}`,
       description: `Execute agent flow: ${flow.name}`,
+      flowName: flow.name,
+      isRawInput,
       plugin: (_runtimeArgs = {}) => ({
         name: `flow_${uuid}`,
         description: toolDescription,
@@ -228,22 +230,10 @@ class AgentFlows {
               }, {}),
             },
             handler: async (args) => {
-              // For raw input flows, extract the user's original text
-              // instead of using the LLM-generated arguments
-              if (isRawInput && variables.length > 0) {
-                const userChat = aibitat._chats?.find((c) => c.from === "USER");
-                if (userChat?.content) {
-                  let rawText = userChat.content;
-                  // Strip @agent prefix if present
-                  rawText = rawText.replace(/^@agent\s+/i, "");
-                  // Strip the flow name (case-insensitive)
-                  const flowNamePattern = new RegExp(
-                    `^${flow.name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*`,
-                    "i"
-                  );
-                  rawText = rawText.replace(flowNamePattern, "").trim();
-                  args = { [variables[0].name]: rawText };
-                }
+              // For raw input flows, use the original text stored before
+              // the LLM tool-calling step, bypassing the LLM-generated arguments
+              if (isRawInput && variables.length > 0 && aibitat.rawInputText) {
+                args = { [variables[0].name]: aibitat.rawInputText };
               }
 
               aibitat.introspect(`Executing flow: ${flow.name}`);
@@ -256,12 +246,11 @@ class AgentFlows {
               }
               aibitat.introspect(`${flow.name} completed successfully`);
 
-              // If raw input mode or directOutput, skip LLM post-processing
-              if (isRawInput || !!result.directOutput) {
+              // If the flow result has directOutput, return it
+              // as the aibitat result so that no other processing is done
+              if (!!result.directOutput) {
                 aibitat.skipHandleExecution = true;
-                if (result.directOutput) {
-                  return AgentFlows.stringifyResult(result.directOutput);
-                }
+                return AgentFlows.stringifyResult(result.directOutput);
               }
 
               return AgentFlows.stringifyResult(result);

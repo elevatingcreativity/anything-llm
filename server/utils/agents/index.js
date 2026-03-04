@@ -469,6 +469,9 @@ class AgentHandler {
         }
 
         this.aibitat.use(plugin.plugin());
+        if (!this.aibitat.rawInputFlows) this.aibitat.rawInputFlows = [];
+        if (plugin.isRawInput)
+          this.aibitat.rawInputFlows.push(plugin.flowName);
         this.log(
           `Attached flow ${plugin.name} (${plugin.flowName}) plugin to Agent cluster`
         );
@@ -617,10 +620,27 @@ class AgentHandler {
   }
 
   startAgentCluster() {
+    let content = this.invocation.prompt;
+
+    // For rawInput flows, replace the full document with a short placeholder
+    // so the LLM only needs to decide to call the tool, not process the full text.
+    // The original prompt is stored on aibitat for the handler to inject directly.
+    const matchedRawFlow = (this.aibitat.rawInputFlows ?? []).find((flowName) =>
+      content.match(new RegExp(`@agent\\s+${flowName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, "i"))
+    );
+    if (matchedRawFlow) {
+      const flowNamePattern = new RegExp(
+        `^@agent\\s+${matchedRawFlow.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*`,
+        "i"
+      );
+      this.aibitat.rawInputText = content.replace(flowNamePattern, "").trim();
+      content = `@agent ${matchedRawFlow} [input provided]`;
+    }
+
     return this.aibitat.start({
       from: USER_AGENT.name,
       to: this.channel ?? WORKSPACE_AGENT.name,
-      content: this.invocation.prompt,
+      content,
     });
   }
 }
