@@ -22,6 +22,7 @@ class LMStudioLLM {
     this.lmstudio = new OpenAIApi({
       baseURL: parseLMStudioBasePath(process.env.LMSTUDIO_BASE_PATH), // here is the URL to your LMStudio instance
       apiKey,
+      timeout: LMStudioLLM.#parseTimeout(),
     });
 
     // Prior to LMStudio 0.2.17 the `model` param was not required and you could pass anything
@@ -49,6 +50,31 @@ class LMStudioLLM {
 
   static #slog(text, ...args) {
     console.log(`\x1b[32m[LMStudio]\x1b[0m ${text}`, ...args);
+  }
+
+  /**
+   * Parse the response timeout for LMStudio from the LMSTUDIO_RESPONSE_TIMEOUT env var.
+   * Defaults to 2 hours to accommodate large local models that may take a long time
+   * to process a prompt before producing the first token.
+   * The minimum enforced value is 5 minutes to prevent accidental short timeouts.
+   * Set LMSTUDIO_RESPONSE_TIMEOUT in milliseconds in your .env file.
+   * @returns {number} Timeout in milliseconds.
+   */
+  static #parseTimeout() {
+    const defaultTimeout = 2 * 60 * 60 * 1000; // 2 hours
+    const minTimeout = 5 * 60 * 1000; // 5 minutes
+    const rawTimeout = process.env.LMSTUDIO_RESPONSE_TIMEOUT;
+
+    if (!rawTimeout || isNaN(Number(rawTimeout))) return defaultTimeout;
+
+    const timeout = Number(rawTimeout);
+    if (timeout < minTimeout) {
+      LMStudioLLM.#slog(
+        `LMSTUDIO_RESPONSE_TIMEOUT (${timeout}ms) is less than the 5-minute minimum - using 5-minute minimum.`
+      );
+      return minTimeout;
+    }
+    return timeout;
   }
 
   async assertModelContextLimits() {
