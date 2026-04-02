@@ -1,7 +1,7 @@
 # PATCHES.md — custom fixes on top of upstream AnythingLLM
 
 Base: upstream v1.11.2 (tag `v1.11.2`)
-Our version: `1.11.2-fixes.1` (branch `my-fixes-v1.11.2`)
+Our version: `1.11.2-fixes.2` (branch `my-fixes-v1.11.2`)
 
 ## Applied patches
 
@@ -23,6 +23,17 @@ Site" on iPad was ignored and the modal was blocked. Replaced with `window.inner
 || window.innerHeight < 600` so viewport size is the authority. Also fixes iOS double-tap
 issue on the upload button in the sidebar by adding an `onTouchEnd` handler. Removes
 `md:` prefix on `overflow-y-auto` so the modal scrolls correctly on iPad mini in portrait.
+
+### 4. fix: add configurable response timeout for LM Studio provider
+**Commit:** `73531928`
+**Files:** `server/utils/AiProviders/lmStudio/index.js`, `server/models/systemSettings.js`
+**Why:** The LM Studio provider used the OpenAI SDK with no custom timeout, inheriting
+the SDK's hardcoded 10-minute default. Large local models (e.g. Qwen2.5-72B+) can take
+longer than 10 minutes to process a prompt before producing the first token, causing a
+"Socket Timeout" error in the UI. Added `LMSTUDIO_RESPONSE_TIMEOUT` env var (in ms),
+defaulting to 2 hours. Minimum enforced value is 5 minutes. Mirrors the existing
+`OLLAMA_RESPONSE_TIMEOUT`, `OPENROUTER_TIMEOUT_MS`, and `NOVITA_LLM_TIMEOUT_MS` vars.
+Upstream issue: https://github.com/Mintplex-Labs/anything-llm/issues/4700
 
 ### 3. fix: use per-model output token limits for Anthropic agent provider
 **Commit:** `1b60f524`
