@@ -743,6 +743,7 @@ const SystemSettings = {
       LMStudioTokenLimit: process.env.LMSTUDIO_MODEL_TOKEN_LIMIT || null,
       LMStudioModelPref: process.env.LMSTUDIO_MODEL_PREF,
       LMStudioAuthToken: !!process.env.LMSTUDIO_AUTH_TOKEN,
+      LMStudioResponseTimeout: process.env.LMSTUDIO_RESPONSE_TIMEOUT,
 
       // LocalAI Keys
       LocalAiApiKey: !!process.env.LOCAL_AI_API_KEY,
